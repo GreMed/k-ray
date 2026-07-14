@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Python 虚拟环境（AKShare 等包含 JS 文件）
+    ".venv/**",
   ]),
 ]);
 

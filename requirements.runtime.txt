@@ -1,0 +1,10 @@
+# K-Ray 生产运行时 Python 依赖
+# 只包含真实运行必需的依赖，不包含开发/测试用的 AKShare
+# BaoStock 用于 A 股真实前复权日线行情查询
+#
+# 版本锁定来源：从已通过验证的镜像 k-ray-mvp:2026-07-14 中 pip freeze 读取
+# Python 版本：3.11.2（Debian bookworm-slim 自带）
+baostock==0.9.3
+# 以下为 baostock 的间接依赖，显式锁定以保证构建可复现
+pandas==3.0.3
+numpy==2.4.6

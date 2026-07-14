@@ -1,0 +1,60 @@
+# K-Ray Docker 构建忽略文件
+# 避免将不必要的文件打包进 Docker 镜像
+
+# 版本控制
+.git
+.gitignore
+
+# 构建产物
+.next
+out
+dist
+
+# 依赖目录（镜像内重新安装）
+node_modules
+.venv
+venv
+__pycache__
+
+# 环境变量与密钥（绝不打包进镜像）
+.env
+.env.local
+.env.production
+.env.*.local
+
+# 测试与截图归档
+__tests__
+screenshots_archive
+screenshots_phase17
+screenshots_phase2_test.js
+take_screenshots*.js
+*.test.ts
+*.test.tsx
+jest.config.js
+jest.setup.ts
+coverage
+
+# 报告与文档（非运行时必需）
+reports
+*.md
+!README_RELEASE.md
+
+# IDE 与系统文件
+.vscode
+.idea
+.DS_Store
+*.swp
+*.swo
+
+# Docker 自身文件
+Dockerfile
+.dockerignore
+docker-compose.yml
+
+# 发布目录
+release
+
+# 临时文件
+*.log
+*.tmp
+.tmp

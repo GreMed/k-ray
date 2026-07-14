@@ -12,6 +12,8 @@
 
 # testing
 /coverage
+/test-results
+/playwright-report
 
 # next.js
 /.next/
@@ -19,6 +21,15 @@
 
 # production
 /build
+
+# release packages（本地打包产物，不上传）
+/release/
+/reports/
+
+# 截图产物（本地验收用，不上传）
+screenshots_*
+screenshots-*
+screenshots_archive
 
 # misc
 .DS_Store
@@ -30,8 +41,15 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
+# 本地日志和临时文件
+*.log
+*.tmp
+*.bak
+
 # env files (can opt-in for committing if needed)
 .env*
+# 保留生产环境变量示例文件（发布材料必需）
+!.env.production.example
 
 # vercel
 .vercel
@@ -39,3 +57,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# python virtual environment
+.venv/
+
+# release tar packages
+*.tar.gz

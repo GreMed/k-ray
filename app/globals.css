@@ -1,26 +1,68 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* K-Ray Brand Colors */
+  --ink: #172033;
+  --muted: #667085;
+  --line: #d9e2ef;
+  --paper: #f7fafc;
+  --panel: #ffffff;
+  --blue: #2864e6;
+  --cyan: #00a6c8;
+  --green: #20a464;
+  --orange: #f59e0b;
+  --red: #e65353;
+  --violet: #7657d9;
+  --teal: #0f8b8d;
+  --gold: #f4a261;
+  --purple: #7c3aed;
+  --rose: #db2777;
+  
+  /* Base colors */
+  --background: #fbfdff;
+  --foreground: #172033;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  
+  /* Brand colors */
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-paper: var(--paper);
+  --color-panel: var(--panel);
+  --color-blue: var(--blue);
+  --color-cyan: var(--cyan);
+  --color-green: var(--green);
+  --color-orange: var(--orange);
+  --color-red: var(--red);
+  --color-violet: var(--violet);
+  --color-teal: var(--teal);
+  --color-gold: var(--gold);
+  --color-purple: var(--purple);
+  --color-rose: var(--rose);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+/* Remove dark mode - K-Ray uses light theme only */
 
 body {
-  background: var(--background);
+  background: 
+    linear-gradient(115deg, rgba(40, 100, 230, 0.12), transparent 34%),
+    linear-gradient(245deg, rgba(0, 166, 200, 0.12), transparent 32%),
+    linear-gradient(180deg, #fbfdff 0%, #f1f6fb 48%, #fbfcfe 100%);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  min-height: 100vh;
+  overflow-x: hidden;
+  width: 100%;
+}
+
+#__next {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
 }
