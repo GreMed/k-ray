@@ -24,9 +24,10 @@ __pycache__
 
 # 测试与截图归档
 __tests__
-screenshots_archive
-screenshots_phase17
-screenshots_phase2_test.js
+# 根目录截图产物目录（不影响 scripts/ 下的同名验收脚本）
+/screenshots_*/
+/screenshots-*/
+/screenshots_phase2_test.js
 take_screenshots*.js
 *.test.ts
 *.test.tsx

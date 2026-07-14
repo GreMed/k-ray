@@ -63,8 +63,27 @@ Docker 镜像基于 Debian 多阶段构建，包含 Node.js、Python 3、venv、
 
 ## Vercel 部署说明
 
-**普通 Vercel Next.js 部署尚不能保证 BaoStock 核心链路工作。**
+### 普通 Vercel Serverless 部署不支持当前 BaoStock 链路
 
-原因：BaoStock 使用 Node.js `child_process` 启动本地 Python 子进程，这在 Vercel Serverless 环境中不被支持。在将行情与股票名称查询适配为 Vercel Python Function 或独立 Docker 后端之前，真实线上股票查询无法在 Vercel 上运行。
+普通 Vercel Next.js 部署尚不能保证 BaoStock 核心链路工作。原因：BaoStock 使用 Node.js `child_process` 启动本地 Python 子进程，这在 Vercel Serverless 环境中不被支持。
 
-静态案例页面（`/demo/core-replay`）不依赖 BaoStock，可以在 Vercel 上正常部署。
+### 当前采用 Vercel Container Images 部署
+
+本仓库提供 `Dockerfile.vercel`，用于 Vercel Container Images 部署，保留完整的 Node.js + Python + BaoStock 真实行情链路。
+
+Vercel 项目必须设置以下环境变量：
+
+```
+PORT=3000
+MARKET_DATA_MODE=real
+EVENT_NEWS_MODE=mock
+ANNOUNCEMENT_DATA_MODE=mock
+```
+
+推荐 Function Region：`hkg1`（Hong Kong）。
+
+### 部署后验证要求
+
+BaoStock 使用外部网络连接，必须在部署后实际查询股票名称和 K 线，不能只用 `/api/health` 判断成功。如果真实查询失败，不得降级为 Mock 冒充真实行情。
+
+完整的 Vercel 容器部署验证步骤参见 [README_RELEASE.md](./README_RELEASE.md)。
