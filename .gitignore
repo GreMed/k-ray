@@ -26,10 +26,11 @@
 /release/
 /reports/
 
-# 截图产物（本地验收用，不上传）
-screenshots_*
-screenshots-*
-screenshots_archive
+# 截图产物目录（本地验收用，不上传）
+# 注意：仅忽略根目录下的截图产物目录，不影响 scripts/ 下的同名验收脚本
+/screenshots_*/
+/screenshots-*/
+/screenshots_archive/
 
 # misc
 .DS_Store
@@ -63,3 +64,10 @@ next-env.d.ts
 
 # release tar packages
 *.tar.gz
+
+# 早期本地材料（不进入正式源码仓库，保留本地文件）
+/PHASE2_ACCEPTANCE_REPORT.md
+/take_screenshots.js
+/take_screenshots_phase3.js
+/take_screenshots_phase4.js
+/screenshots_phase2_test.js

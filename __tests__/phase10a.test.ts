@@ -82,11 +82,18 @@ function makeRequest(params: Record<string, string>): Request {
 
 describe('第十阶段 A 测试 - 新闻候选数据服务（封板修复版）', () => {
   let originalMode: string | undefined;
+  let originalAksharePythonPath: string | undefined;
   let consoleErrorSpy: jest.SpyInstance;
 
   beforeEach(() => {
     originalMode = process.env.EVENT_NEWS_MODE;
     process.env.EVENT_NEWS_MODE = 'mock';
+    // 测试隔离：在干净环境（无项目 .venv）中，akshareNewsProvider.getPythonPath()
+    // 会因 python3 不是绝对路径而返回"Python 运行环境未安装"，导致 execFile mock
+    // 之前就被预检查拦截。设置 AKSHARE_PYTHON_PATH 为 Node 自身可执行路径
+    // （process.execPath 一定存在），让预检查通过，execFile mock 正常接管。
+    originalAksharePythonPath = process.env.AKSHARE_PYTHON_PATH;
+    process.env.AKSHARE_PYTHON_PATH = process.execPath;
     jest.clearAllMocks();
     clearCache();
     consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
@@ -97,6 +104,11 @@ describe('第十阶段 A 测试 - 新闻候选数据服务（封板修复版）'
       process.env.EVENT_NEWS_MODE = originalMode;
     } else {
       delete process.env.EVENT_NEWS_MODE;
+    }
+    if (originalAksharePythonPath !== undefined) {
+      process.env.AKSHARE_PYTHON_PATH = originalAksharePythonPath;
+    } else {
+      delete process.env.AKSHARE_PYTHON_PATH;
     }
     clearCache();
     consoleErrorSpy.mockRestore();
