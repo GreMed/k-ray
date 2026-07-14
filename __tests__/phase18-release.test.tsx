@@ -6,6 +6,7 @@
  *   2. 生产环境开发路由隔离（isDevEnvironment 在生产返回 false）
  *   3. DevToolsPanel 在非开发环境不渲染
  *   4. 健康检查不泄露环境变量
+ *   5. Proxy 迁移：matcher 仅匹配 dev 路由，首页/案例/API 不经过 Proxy
  *
  * @jest-environment node
  */
@@ -91,8 +92,8 @@ describe('第十八阶段发布收口：健康检查端点', () => {
   });
 });
 
-// === 生产环境开发路由隔离测试 ===
-describe('第十八阶段发布收口：生产环境开发路由隔离', () => {
+// === 生产环境开发路由隔离测试（Proxy 迁移版） ===
+describe('第十八阶段发布收口：Proxy 开发路由隔离', () => {
   const originalNodeEnv = process.env.NODE_ENV;
   const originalJestWorkerId = process.env.JEST_WORKER_ID;
 
@@ -117,13 +118,13 @@ describe('第十八阶段发布收口：生产环境开发路由隔离', () => {
     expect(devHelpers.isDevEnvironment()).toBe(false);
   });
 
-  test('middleware 在生产环境对 /dev-* 路由返回 404', async () => {
+  test('proxy 在生产环境对三个 dev 路由返回 404', async () => {
     jest.resetModules();
     process.env.NODE_ENV = 'production';
     delete process.env.JEST_WORKER_ID;
 
-    const middlewareModule = await import('@/middleware');
-    const middleware = (middlewareModule as { middleware: (req: unknown) => { status: number } }).middleware;
+    const proxyModule = await import('@/proxy');
+    const proxy = (proxyModule as { proxy: (req: unknown) => { status: number } }).proxy;
     const { NextRequest } = await import('next/server');
 
     const devUrls = [
@@ -134,46 +135,51 @@ describe('第十八阶段发布收口：生产环境开发路由隔离', () => {
 
     for (const url of devUrls) {
       const req = new NextRequest(url);
-      const res = middleware(req);
+      const res = proxy(req);
       expect(res.status).toBe(404);
     }
   });
 
-  test('middleware 在开发环境对 /dev-* 路由放行（非 404）', async () => {
+  test('proxy 在开发环境对 dev 路由放行（非 404）', async () => {
     jest.resetModules();
     process.env.NODE_ENV = 'development';
     delete process.env.JEST_WORKER_ID;
 
-    const middlewareModule = await import('@/middleware');
-    const middleware = (middlewareModule as { middleware: (req: unknown) => { status: number } }).middleware;
+    const proxyModule = await import('@/proxy');
+    const proxy = (proxyModule as { proxy: (req: unknown) => { status: number } }).proxy;
     const { NextRequest } = await import('next/server');
 
     const req = new NextRequest('http://localhost/dev-announcements');
-    const res = middleware(req);
+    const res = proxy(req);
     // 开发环境应放行（NextResponse.next() 状态为 200）
     expect(res.status).not.toBe(404);
   });
 
-  test('middleware 不影响非 dev 路由', async () => {
+  test('proxy config matcher 仅匹配三个 dev 路由，不包含首页、案例或 API', async () => {
     jest.resetModules();
-    process.env.NODE_ENV = 'production';
 
-    const middlewareModule = await import('@/middleware');
-    const middleware = (middlewareModule as { middleware: (req: unknown) => { status: number } }).middleware;
-    const { NextRequest } = await import('next/server');
+    const proxyModule = await import('@/proxy');
+    const config = (proxyModule as { config: { matcher: string[] } }).config;
 
-    const normalUrls = [
-      'http://localhost/',
-      'http://localhost/demo/core-replay?stock=300750',
-      'http://localhost/api/health',
-      'http://localhost/api/market/stock-info?stockCode=600519&market=SH',
-    ];
+    // matcher 应包含且仅包含三个 dev 路由
+    expect(config.matcher).toHaveLength(3);
 
-    for (const url of normalUrls) {
-      const req = new NextRequest(url);
-      const res = middleware(req);
-      // 非 dev 路由应放行
-      expect(res.status).not.toBe(404);
+    const matcherStr = config.matcher.join(' ');
+
+    // 必须匹配三个 dev 路由
+    expect(matcherStr).toContain('dev-ai-event-retrieval');
+    expect(matcherStr).toContain('dev-announcements');
+    expect(matcherStr).toContain('dev-event-sources');
+
+    // 不得包含首页根路径匹配（旧模式用 (?!api) 通配所有路径）
+    expect(matcherStr).not.toContain('(?!api');
+    // 不得匹配 /demo/core-replay
+    expect(matcherStr).not.toContain('demo');
+    // 不得匹配 /api
+    expect(matcherStr).not.toContain('api');
+    // 每条 matcher 必须以 /dev- 开头
+    for (const pattern of config.matcher) {
+      expect(pattern.startsWith('/dev-')).toBe(true);
     }
   });
 });
