@@ -10,7 +10,7 @@
 
 import { useState, useCallback, Suspense } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import ProfessionalKLineChart from '@/components/ProfessionalKLineChart';
 import TradingDayNotePanel from '@/components/TradingDayNotePanel';
 import StockEventCalendar from '@/components/StockEventCalendar';
@@ -22,6 +22,9 @@ import { loadNotes } from '@/services/replayNotes';
 import { addUserStockEvent, updateUserStockEvent, deleteUserStockEvent, userEventToStockEvent } from '@/services/stockEvents';
 import { loadUserEvents } from '@/services/userFutureEvents';
 import { getCaseCalendarEvents } from '@/services/stockEvents/caseCalendar';
+import WatchlistButton from '@/components/WatchlistButton';
+import WatchlistDrawer from '@/components/WatchlistDrawer';
+import { useWatchlist } from '@/hooks/useWatchlist';
 
 // 将 StaticCaseNode 转换为 MarketKeyNode，供 ProfessionalKLineChart 使用
 function staticNodeToMarketKeyNode(node: StaticCaseNode, stockCode: string): MarketKeyNode {
@@ -90,6 +93,22 @@ function CoreReplayDemoContent() {
   const [isEventFormOpen, setIsEventFormOpen] = useState(false);
   const [eventFormMode, setEventFormMode] = useState<'add' | 'edit'>('add');
   const [editingEvent, setEditingEvent] = useState<StockEvent | null>(null);
+  // 第二十阶段 A 验收补强：案例页"我的自选"抽屉状态（复用同一套自选数据）
+  const [isWatchlistOpen, setIsWatchlistOpen] = useState(false);
+  const { count, isReady } = useWatchlist();
+  const router = useRouter();
+
+  // 从案例页自选列表点击"查看"后，跳转到普通查询页并准备目标股票
+  // 不跳转到 Mock 案例，进入真实行情查询流程
+  const handleViewStock = useCallback((stockCode: string, market: 'SH' | 'SZ', stockName: string) => {
+    const params = new URLSearchParams();
+    params.set('stock', stockCode);
+    params.set('market', market);
+    if (stockName && stockName.trim()) {
+      params.set('name', stockName);
+    }
+    router.push(`/?${params.toString()}`);
+  }, [router]);
 
   // 构造 MarketKeyNode 数组供图表使用
   const marketKeyNodes = nodes.map((n) => staticNodeToMarketKeyNode(n, stockCode));
@@ -226,13 +245,30 @@ function CoreReplayDemoContent() {
               <span className="ml-2">· 静态快照生成于：{caseData.snapshotGeneratedAt} · 内容不会实时更新</span>
             </p>
           </div>
-          <Link
-            href="/"
-            className="text-sm text-blue hover:text-blue/80 font-medium border border-blue/30 rounded-lg px-3 py-1.5 transition-colors"
-            data-testid="back-to-home"
-          >
-            ← 返回查询真实行情
-          </Link>
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* 第二十阶段 A：加入自选按钮 */}
+            <WatchlistButton
+              stockCode={stockCode}
+              stockName={stockName}
+              market={market}
+            />
+            {/* 第二十阶段 A 验收补强：案例页"我的自选"入口（复用同一套自选数据） */}
+            <button
+              data-testid="watchlist-entry"
+              onClick={() => setIsWatchlistOpen(true)}
+              className="px-3 py-1.5 text-xs font-semibold text-ink bg-paper border border-line rounded-lg hover:bg-line/30 transition-colors"
+              aria-label="我的自选"
+            >
+              我的自选{isReady && count > 0 ? `（${count}）` : ''}
+            </button>
+            <Link
+              href="/"
+              className="text-sm text-blue hover:text-blue/80 font-medium border border-blue/30 rounded-lg px-3 py-1.5 transition-colors"
+              data-testid="back-to-home"
+            >
+              ← 返回查询真实行情
+            </Link>
+          </div>
         </div>
       </header>
 
@@ -360,6 +396,11 @@ function CoreReplayDemoContent() {
                 />
               </div>
             </div>
+
+            {/* 第二十阶段 A：本地数据保存范围提示 */}
+            <p data-testid="local-data-hint-page" className="mt-2 text-xs text-muted text-center">
+              个人数据目前仅保存在此浏览器，云端同步即将开放。
+            </p>
           </div>
 
           {/* 右侧：当前节点摘要 → 复盘摘要 → 事件资料 → 分析链路 */}
@@ -619,6 +660,13 @@ function CoreReplayDemoContent() {
         stockCode={stockCode}
         onSave={handleSaveEvent}
         onCancel={handleCloseEventForm}
+      />
+
+      {/* 第二十阶段 A 验收补强：案例页"我的自选"抽屉（复用同一套自选数据） */}
+      <WatchlistDrawer
+        isOpen={isWatchlistOpen}
+        onClose={() => setIsWatchlistOpen(false)}
+        onViewStock={handleViewStock}
       />
     </div>
   );

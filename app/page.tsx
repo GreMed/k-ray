@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef, Suspense } from 'react';
 import Link from 'next/link';
 import { Stock, ReplayResult, PageState, HistoricalEvent, KeyNode, FutureEvent, EventSource, MarketKeyNode, StockEvent, StockEventCategory } from '@/types';
 import { simulateReplay, DEMO_STOCK, DEMO_START_DATE, DEMO_END_DATE } from '@/utils/devHelpers';
@@ -26,8 +26,10 @@ import TradingDayNotePanel from '@/components/TradingDayNotePanel';
 import { loadStockEvents, addUserStockEvent, updateUserStockEvent, deleteUserStockEvent } from '@/services/stockEvents';
 import { addUserEvent, clearUserEvents } from '@/services/userFutureEvents';
 import { addNote, clearNotes, loadNotes } from '@/services/replayNotes';
-import { formatStockDisplayName } from '@/utils/stockCode';
+import { formatStockDisplayName, detectMarket } from '@/utils/stockCode';
 import { CASE_LIST } from '@/data/caseRegistry';
+import WatchlistButton from '@/components/WatchlistButton';
+import { useSearchParams, useRouter } from 'next/navigation';
 
 // 第十五阶段修复：日期初始值改为组件内 useEffect 计算（见下方）
 // 原模块级 new Date() 在 SSR/CSR 各执行一次，跨日或时区差异会导致
@@ -38,7 +40,16 @@ function normalizeTrailingPunctuation(s: string): string {
   return s.replace(/[。.！!]+$/, '');
 }
 
+// 第二十阶段 A：useSearchParams 需要 Suspense 边界
 export default function Home() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-paper" />}>
+      <HomeContent />
+    </Suspense>
+  );
+}
+
+function HomeContent() {
   const [pageState, setPageState] = useState<PageState>('initial');
   const [selectedStock, setSelectedStock] = useState<Stock | null>(null);
   // 初始为空字符串，确保 SSR 与客户端首次渲染一致；客户端挂载后由 useEffect 填充实际日期
@@ -88,6 +99,94 @@ export default function Home() {
   // 第十六阶段：任意交易日笔记
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [noteDates, setNoteDates] = useState<string[]>([]);
+
+  // 第二十阶段 A：从"我的自选"跳转过来时，通过 query 参数自动填入股票代码和名称
+  // 验收修复（第二轮）：URL 同步 effect 只依赖 URL 参数本身（routeKey），绝不依赖 selectedStock。
+  // 验收修复（第三轮）：Stock.name 保持空字符串（不写入"名称获取中"），名称自动同步交给
+  // StockSearch 的 stock-info 查询。"名称获取中"/"名称暂未取得"仅为 UI 展示文案。
+  // 非法 URL（detectMarket 返回 null 或市场不匹配）时清理参数并回到初始状态。
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  // routeKey 由 URL 参数组成，仅在 URL 真实变化时才变化
+  const routeKey = `${searchParams.get('stock') || ''}|${searchParams.get('market') || ''}|${searchParams.get('name') || ''}`;
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    const stockParam = searchParams.get('stock');
+    const marketParam = searchParams.get('market');
+    const nameParam = searchParams.get('name');
+    // stock 和 market 为必要参数；name 可为空
+    if (!stockParam || !marketParam) return;
+
+    // 统一 URL 股票校验：代码必须能被 detectMarket 识别，且市场必须一致
+    // detectMarket 返回 null（非 6/0/3 开头）时，不接受该 URL 股票
+    const detected = detectMarket(stockParam);
+    if (detected === null) {
+      // 非法 URL：清理参数，回到初始状态，不展示旧结果
+      setSelectedStock(null);
+      setReplayResult(null);
+      setPageState('initial');
+      router.replace('/');
+      return;
+    }
+    // 识别出的市场必须与 market 参数一致
+    if (detected !== marketParam) {
+      setSelectedStock(null);
+      setReplayResult(null);
+      setPageState('initial');
+      router.replace('/');
+      return;
+    }
+
+    // Stock.name：URL 提供 name 时使用真实名称，否则保持空字符串
+    // "名称获取中"/"名称暂未取得"仅为 UI 文案，不写入 Stock.name
+    const stockName = (nameParam && nameParam.trim()) || '';
+
+    // 如果 URL 指向的就是当前已选中的股票：
+    // - 同一股票 name 晚到同步：仅更新名称，不清空行情，不重置页面
+    if (selectedStock && selectedStock.code === stockParam && selectedStock.market === marketParam) {
+      // URL 补充了真实 name 且当前 name 为空或不同，只同步名称
+      if (stockName && selectedStock.name !== stockName) {
+        setSelectedStock({ ...selectedStock, name: stockName });
+      }
+      return;
+    }
+
+    // 切换股票：立即清空所有与上一只股票相关的状态
+    setSelectedStock({
+      id: stockParam,
+      code: stockParam,
+      name: stockName,
+      market: marketParam,
+    });
+    // 清空行情结果和页面状态，返回"已选中、等待查询"状态
+    setReplayResult(null);
+    setPageState('initial');
+    setMarketDataError(null);
+    // 清空所有抽屉、弹窗、选中状态
+    setSelectedEvent(null);
+    setSelectedNode(null);
+    setSelectedEventGroup(null);
+    setIsEventDrawerOpen(false);
+    setIsEventListOpen(false);
+    setIsNodeDrawerOpen(false);
+    setSelectedFutureEvent(null);
+    setIsFutureEventDrawerOpen(false);
+    setDevAutoOpenSourceId(null);
+    setSelectedSource(null);
+    setSelectedMarketKeyNode(null);
+    setIsMarketKeyNodeDrawerOpen(false);
+    setIsNodeEventDrawerOpen(false);
+    setDevKeyNodeSampleMode('none');
+    setIsUserEventFormOpen(false);
+    setEditingStockEvent(null);
+    setStockEvents([]);
+    setSelectedDate(null);
+    setNoteDates([]);
+    // 注意：依赖项只有 routeKey，不含 selectedStock。
+    // selectedStock 的读取仅用于"同一股票跳过"的幂等判断，不会形成循环。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routeKey]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // 动态基准日：客户端挂载后为今天，初始空字符串避免 hydration mismatch
   const referenceEndDate = todayStr;
@@ -549,6 +648,8 @@ export default function Home() {
   }, [replayResult, selectedStock]);
 
   // 重置到初始状态
+  // 第二十阶段 A 验收修复（第二轮）：同步清除 URL 中的自选参数，
+  // 防止 routeKey 变化前旧 URL 把股票 B 重新选回。
   const handleReset = useCallback(() => {
     setPageState('initial');
     setSelectedStock(null);
@@ -581,7 +682,12 @@ export default function Home() {
     setIsUserEventFormOpen(false);
     setEditingStockEvent(null);
     setStockEvents([]);
-  }, []);
+    // 清除 URL 中的自选参数，避免旧 URL 重新覆盖
+    // 检查当前 searchParams 是否包含 stock 参数（来自自选跳转）
+    if (searchParams.get('stock')) {
+      router.replace('/');
+    }
+  }, [router, searchParams]);
 
   // 日期变化处理
   const handleStartDateChange = useCallback((date: string) => {
@@ -616,6 +722,10 @@ export default function Home() {
   }, [replayResult]);
 
   // 股票选择变化
+  // 第二十阶段 A 验收修复（第二轮）：
+  // - 用户清除股票（stock === null）时，清理 URL 中旧的自选参数
+  // - 用户手动选择与 URL 不同的股票 C 时，清理 URL 中旧的股票 B 参数
+  // - 同一股票名称晚到同步（code 相同）时，不清理 URL，不重复清空状态
   const handleSelectStock = useCallback((stock: Stock | null) => {
     setSelectedStock(stock);
     // 名称晚到同步：若 replayResult 已存在且 code 匹配，同步更新名称
@@ -628,7 +738,15 @@ export default function Home() {
         });
       }
     }
-  }, []);
+    // 清理 URL 中旧的自选参数：用户主动清除或选择了与 URL 不同的股票
+    const urlStock = searchParams.get('stock');
+    const urlMarket = searchParams.get('market');
+    // 用户清除股票，或选择了与 URL 不同的股票 → 清理 URL
+    // 同一股票名称晚到同步（code 相同）时不清理 URL
+    if (urlStock && (!stock || stock.code !== urlStock || stock.market !== (urlMarket || ''))) {
+      router.replace('/');
+    }
+  }, [router, searchParams]);
 
   // 错误状态：重试 - 复用 executeReplay，确保统一的状态清理和 isLoading 防重逻辑
   const handleRetry = async () => {
@@ -966,12 +1084,22 @@ export default function Home() {
                     )}
                   </p>
                 </div>
-                <button
-                  onClick={handleReset}
-                  className="px-4 py-2 text-sm font-semibold text-muted hover:text-ink hover:bg-paper rounded-lg transition-colors border border-line"
-                >
-                  {resetLabel}
-                </button>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {/* 第二十阶段 A：加入自选按钮 */}
+                  {replayResult.stock.market === 'SH' || replayResult.stock.market === 'SZ' ? (
+                    <WatchlistButton
+                      stockCode={replayResult.stock.code}
+                      stockName={replayResult.stock.name}
+                      market={replayResult.stock.market}
+                    />
+                  ) : null}
+                  <button
+                    onClick={handleReset}
+                    className="px-4 py-2 text-sm font-semibold text-muted hover:text-ink hover:bg-paper rounded-lg transition-colors border border-line"
+                  >
+                    {resetLabel}
+                  </button>
+                </div>
               </div>
 
               {/* 数据来源信息栏 */}
@@ -1088,6 +1216,11 @@ export default function Home() {
                       />
                     </div>
                   </div>
+
+                  {/* 第二十阶段 A：本地数据保存范围提示 */}
+                  <p data-testid="local-data-hint-page" className="mt-2 text-xs text-muted text-center">
+                    个人数据目前仅保存在此浏览器，云端同步即将开放。
+                  </p>
 
                   {/* 旧事件列表：仅 Mock 模式渲染 */}
                   {!replayResult.marketMeta?.isRealMarketData && (

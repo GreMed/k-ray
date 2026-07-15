@@ -1,5 +1,23 @@
 // Jest 测试环境设置
 
+// 全局 mock next/navigation（Header 使用 useRouter，页面组件使用 useSearchParams）
+// 测试中不需要真实的 Next.js 路由上下文，返回安全默认值即可
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: jest.fn(),
+    replace: jest.fn(),
+    back: jest.fn(),
+    forward: jest.fn(),
+    refresh: jest.fn(),
+    prefetch: jest.fn(),
+  }),
+  useSearchParams: () => new URLSearchParams(),
+  usePathname: () => '/',
+  useParams: () => ({}),
+  redirect: jest.fn(),
+  notFound: jest.fn(),
+}));
+
 // 仅在 jsdom 环境下 mock window 相关 API（node 环境无 window）
 if (typeof window !== 'undefined') {
   // mock window.scrollTo（避免 "Not implemented: window.scrollTo" 警告）

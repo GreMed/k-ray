@@ -38,6 +38,45 @@ export default function StockSearch({ onSelectStock, selectedStock }: StockSearc
   const isCustomCode = /^\d{6}$/.test(typedCode) && detectedMarket !== null && !isPresetMatch;
   const isUnknownCode = /^\d{6}$/.test(typedCode) && detectedMarket === null;
 
+  // 验收修复（第三轮）：从自选 URL 进入时，selectedStock.name 为空字符串，
+  // StockSearch 自动调用 stock-info 查询真实名称。
+  // - 使用 queryCodeRef 避免过期请求覆盖用户后来选择的其他股票
+  // - 仅当当前仍是同一股票时更新名称
+  // - 不清空行情，不重新触发查询，不改变股票代码和市场
+  useEffect(() => {
+    if (!selectedStock) return;
+    // 仅当名称为空时自动查询
+    if (selectedStock.name) return;
+    const { code, market } = selectedStock;
+    if (!/^\d{6}$/.test(code)) return;
+    const m = detectMarket(code);
+    if (!m || m !== market) return;
+    // 已在查询中，避免重复
+    if (queryCodeRef.current === code) return;
+    queryCodeRef.current = code;
+    setCustomCodeLoading(true);
+    fetch(`/api/market/stock-info?stockCode=${code}&market=${market}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        // 避免过期请求覆盖：当前选中的股票必须是同一代码
+        const current = selectedStockRef.current;
+        if (!current || current.code !== code) return;
+        const resolvedName = (data && data.name) || '';
+        if (resolvedName) {
+          // 仅更新名称，不清空行情，不重置页面
+          onSelectStock({ ...current, name: resolvedName });
+        }
+      })
+      .catch(() => {
+        // 查询失败，保留股票代码，用户仍可查询行情
+      })
+      .finally(() => {
+        if (queryCodeRef.current === code) {
+          setCustomCodeLoading(false);
+        }
+      });
+  }, [selectedStock, onSelectStock]);
+
   // 异步查询股票真实名称
   const queryStockName = async (code: string, market: 'SH' | 'SZ') => {
     queryCodeRef.current = code;

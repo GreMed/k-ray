@@ -59,7 +59,17 @@ jest.mock('lightweight-charts', () => {
 
 let mockSearchParams: URLSearchParams | null = new URLSearchParams();
 jest.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: jest.fn(),
+    replace: jest.fn(),
+    back: jest.fn(),
+    forward: jest.fn(),
+    refresh: jest.fn(),
+    prefetch: jest.fn(),
+  }),
   useSearchParams: () => mockSearchParams,
+  usePathname: () => '/',
+  useParams: () => ({}),
 }));
 
 function setSearchParams(params: Record<string, string> | null) {

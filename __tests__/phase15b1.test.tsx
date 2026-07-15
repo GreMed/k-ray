@@ -53,6 +53,21 @@ jest.mock('lightweight-charts', () => {
 const mockFetch = jest.fn() as jest.MockedFunction<typeof fetch>;
 global.fetch = mockFetch as unknown as typeof fetch;
 
+// Mock next/navigation（案例页使用 useRouter）
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: jest.fn(),
+    replace: jest.fn(),
+    back: jest.fn(),
+    forward: jest.fn(),
+    refresh: jest.fn(),
+    prefetch: jest.fn(),
+  }),
+  useSearchParams: () => new URLSearchParams(),
+  usePathname: () => '/',
+  useParams: () => ({}),
+}));
+
 import CoreReplayDemoPage from '@/app/demo/core-replay/page';
 import { staticCase_300750 } from '@/data/staticCase_300750';
 import { validateStaticCase } from '@/utils/validateStaticCase';

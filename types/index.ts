@@ -412,3 +412,13 @@ export interface StaticHistoricalCase {
   // 静态案例内置的未来事件（可核验 + 案例演示），不依赖运行时 loadStockEvents()
   futureEvents: StockEvent[];
 }
+
+// ========== 第二十阶段 A：本机自选股 ==========
+
+// 自选股记录（localStorage 持久化，按 stockCode + market 确定唯一身份）
+export interface WatchlistItem {
+  stockCode: string;   // 股票代码，如 "600519"
+  market: 'SH' | 'SZ'; // 市场
+  stockName: string;   // 股票名称
+  addedAt: string;     // 加入时间 ISO 字符串
+}

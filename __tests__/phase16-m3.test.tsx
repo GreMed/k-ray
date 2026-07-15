@@ -56,6 +56,16 @@ global.fetch = mockFetch as unknown as typeof fetch;
 let mockSearchParams: URLSearchParams | null = new URLSearchParams();
 jest.mock('next/navigation', () => ({
   useSearchParams: () => mockSearchParams,
+  useRouter: () => ({
+    push: jest.fn(),
+    replace: jest.fn(),
+    back: jest.fn(),
+    forward: jest.fn(),
+    refresh: jest.fn(),
+    prefetch: jest.fn(),
+  }),
+  usePathname: () => '/',
+  useParams: () => ({}),
 }));
 
 // 辅助：设置 URL search params

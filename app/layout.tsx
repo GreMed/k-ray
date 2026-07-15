@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { WatchlistProvider } from "@/hooks/useWatchlist";
 
 export const metadata: Metadata = {
   title: "K-Ray",
@@ -16,7 +17,9 @@ export default function RootLayout({
       lang="zh-CN"
       className="h-full antialiased"
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <WatchlistProvider>{children}</WatchlistProvider>
+      </body>
     </html>
   );
 }
